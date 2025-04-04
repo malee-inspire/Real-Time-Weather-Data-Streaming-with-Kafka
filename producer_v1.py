@@ -34,4 +34,4 @@ while True:
     if weather_data:
         producer.send('weather_data', value= weather_data)
         print(f"Sent: {weather_data}")
-    time.sleep(60) ## fetch every minute
+    time.sleep(20) ## fetch every minute
