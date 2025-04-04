@@ -16,18 +16,6 @@ consumer = KafkaConsumer(
 load_dotenv()
 
 ### snowflake setup
-# conn = snowflake.connector.connect(
-#     user = 'LOARAZEN',
-#     password = 'Snowflake4loarazen',
-#     account = 'PBUIBWU-XNB67701',
-#     warehouse = 'COMPUTE_WH',
-#     database = 'KAFKA_SAMPLE_DATA',
-#     schema = 'KAFKA_SCHEMA',
-#     authenticator='snowflake',
-#     role = 'ACCOUNTADMIN'
-# )
-
-### snowflake setup
 conn = snowflake.connector.connect(
     user=os.getenv("SNOWFLAKE_USER"),
     password=os.getenv("SNOWFLAKE_PASSWORD"),
@@ -56,15 +44,6 @@ cursor.execute("ALTER SESSION SET TIMESTAMP_INPUT_FORMAT = 'YYYY-MM-DD HH24:MI:S
 
 for message in consumer:
     weather_data = message.value
-#     cursor.execute(
-#         """
-#         INSERT INTO WEATHER_DATA(city, temperature, humidity, timestamp)
-#         VALUES (%, %, %, %) """ ,
-# (weather_data['city'],
-#         weather_data['temperature'],
-#         weather_data['humidity'],
-#         weather_data['timestamp']
-#         ))
     timestamp = datetime.fromtimestamp(weather_data['timestamp'])
     cursor.execute("""
             INSERT INTO WEATHER_DATA (city, temperature, humidity, timestamp)
