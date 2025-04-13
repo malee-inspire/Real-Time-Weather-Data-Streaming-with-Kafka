@@ -1,53 +1,58 @@
 services:
+  postgres:
+    image: postgres:13
+    environment:
+      POSTGRES_USER: airflow
+      POSTGRES_PASSWORD: airflow
+      POSTGRES_DB: airflow
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  airflow-init:
+    build: .
+    platform: linux/arm64
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow  # Use database
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    command: >
+      bash -cx "
+        airflow db init &&
+        airflow users create --username admin --password admin --firstname Admin --lastname User --role Admin --email admin@example.com
+      "
+    depends_on:
+      postgres:
+        condition: service_healthy  # Wait for PostgreSQL to be ready
+
+  airflow-scheduler:
+    build: .
+    platform: linux/arm64
+    volumes:
+      - ./dags:/opt/airflow/dags
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow  # Use database
+      - AIRFLOW__CORE__EXECUTOR=LocalExecutor
+      - AIRFLOW__CORE__LOAD_EXAMPLES=False
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully  # Wait for init to finish
+    command: scheduler
+
   airflow-webserver:
-    image: apache/airflow:2.10.5
+    build: .
     platform: linux/arm64
     ports:
       - "8080:8080"
-    volumes:
-      - ./dags:/opt/airflow/dags
+    environment:
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow  # Use database
     depends_on:
-      - airflow-scheduler
+      airflow-init:
+        condition: service_completed_successfully  # Wait for init to finish
     command: webserver
-    environment:
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-      - AIRFLOW_WWW_USER_USERNAME=admin
-      - AIRFLOW_WWW_USER_PASSWORD=admin
 
-  airflow-scheduler:
-    image: apache/airflow:2.10.5
-    platform: linux/arm64
-    volumes:
-      - ./dags:/opt/airflow/dags
-    depends_on:
-      - airflow-init
-    command: scheduler
-
-  airflow-init:
-    image: apache/airflow:2.10.5
-    platform: linux/arm64
-    command: db init
-    environment:
-      - AIRFLOW__CORE__LOAD_EXAMPLES=False
-
-  zookeeper:
-    image: confluentinc/cp-zookeeper:latest
-    container_name: zookeeper
-    ports:
-      - "2181:2181"
-    environment:
-      ZOOKEEPER_CLIENT_PORT: 2181
-      ZOOKEEPER_TICK_TIME: 2000
-
-  kafka:
-    image: confluentinc/cp-kafka:latest
-    container_name: kafka
-    ports:
-      - "9092:9092"
-    environment:
-      KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-    depends_on:
-      - zookeeper
+volumes:
+  postgres_data:

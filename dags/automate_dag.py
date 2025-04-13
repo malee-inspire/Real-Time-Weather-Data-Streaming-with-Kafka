@@ -1,8 +1,8 @@
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
-from dags.producer_v1 import fetch_real_data
-from dags.kafka_consum_n_snowflake_loader import consume_and_insert_weather_data
+from producer_v1 import fetch_real_data
+from kafka_consum_n_snowflake_loader import consume_and_insert_weather_data
 
 def fetch_weather():
     fetch_real_data()
@@ -15,7 +15,7 @@ def load_to_snowflake():
 default_args = {
     'owner': 'airflow',
     'depends_on_past': False,
-    'start_date': datetime(2025, 4, 1),
+    'start_date': datetime(2025, 4, 13),
 }
 
 with DAG('weather_pipeline', default_args=default_args, schedule_interval='@hourly') as dag:
